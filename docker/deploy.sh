@@ -2,7 +2,15 @@
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/doublejkim/gaon-climate-edge.git}"
-APP_DIR="${APP_DIR:-$HOME/gaon-climate-edge}"
+SCRIPT_DIR="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+SCRIPT_APP_DIR="$(CDPATH= cd "$SCRIPT_DIR/.." && pwd)"
+if [ -z "${APP_DIR:-}" ]; then
+    if [ -d "$SCRIPT_APP_DIR/.git" ]; then
+        APP_DIR="$SCRIPT_APP_DIR"
+    else
+        APP_DIR="$HOME/gaon-climate-edge"
+    fi
+fi
 BRANCH="${BRANCH:-main}"
 MODE="${1:-local}"
 
@@ -44,6 +52,8 @@ fi
 
 cd "$APP_DIR"
 mkdir -p log
+export APP_CONFIG_DIR="$APP_DIR/config"
+export APP_LOG_DIR="$APP_DIR/log"
 
 if [ "$MODE" = "prod" ]; then
     if [ ! -f config/.env ]; then
@@ -72,3 +82,5 @@ echo "Done. Follow logs with:"
 echo "  cd $APP_DIR && CLIMATE_MODE=$MODE $COMPOSE_DISPLAY -f docker/compose.yml logs -f"
 echo "Log files are written to:"
 echo "  $APP_DIR/log"
+echo "Mounted container log path:"
+echo "  $APP_LOG_DIR -> /app/log"

@@ -47,6 +47,13 @@ CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 컨테이너에서는 `/app/log`로 마운트됩니다.
 `local` 모드는 `DEBUG`, `INFO`, `WARNING`, `ERROR` 레벨 로그를 모두 기록합니다.
 
+마운트된 호스트 경로는 배포 스크립트 실행 마지막에 출력됩니다.
+컨테이너가 실제로 어떤 경로를 마운트했는지는 아래처럼 확인합니다.
+
+```bash
+docker inspect gaon-climate-edge --format '{{ range .Mounts }}{{ println .Source "->" .Destination }}{{ end }}'
+```
+
 라즈베리파이에서 소스가 변경되었거나 Docker 의존성이 바뀌었을 때도 같은 명령을 다시 실행하면 됩니다.
 스크립트가 `git pull --ff-only` 후 이미지를 다시 빌드하고 컨테이너를 재시작합니다.
 
@@ -162,4 +169,11 @@ ModuleNotFoundError: No module named 'lgpio'
 ```bash
 cd ~/gaon-climate-edge
 ./docker/deploy.sh local
+```
+
+컨테이너 내부 `/app/log`에는 파일이 있는데 호스트에서 안 보인다면, 다른 프로젝트 경로가 마운트되었을 가능성이 큽니다.
+아래 명령의 `/app/log` 왼쪽 경로를 확인합니다.
+
+```bash
+docker inspect gaon-climate-edge --format '{{ range .Mounts }}{{ println .Source "->" .Destination }}{{ end }}'
 ```

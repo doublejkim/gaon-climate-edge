@@ -7,8 +7,8 @@ services:
     container_name: gaon-climate-edge
     restart: unless-stopped
     volumes:
-      - ../config:/app/config:ro
-      - ../log:/app/log
+      - ${APP_CONFIG_DIR:-../config}:/app/config:ro
+      - ${APP_LOG_DIR:-../log}:/app/log
     privileged: true
     devices:
       - /dev/gpiomem:/dev/gpiomem

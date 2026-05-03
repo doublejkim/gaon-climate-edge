@@ -113,6 +113,13 @@ CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 컨테이너에서는 `/app/log`로 마운트됩니다.
 `local` 모드는 `DEBUG`, `INFO`, `WARNING`, `ERROR` 레벨 로그를 모두 기록합니다.
 
+마운트된 호스트 경로는 배포 스크립트 실행 마지막에 출력됩니다.
+컨테이너가 실제로 어떤 경로를 마운트했는지는 아래처럼 확인합니다.
+
+```bash
+docker inspect gaon-climate-edge --format '{{ range .Mounts }}{{ println .Source "->" .Destination }}{{ end }}'
+```
+
 라즈베리파이에서 소스 또는 Docker 의존성이 변경된 이후에는 배포 스크립트를 다시 실행하면 됩니다.
 스크립트가 `git pull --ff-only` 후 이미지를 다시 빌드하고 컨테이너를 재시작합니다.
 
