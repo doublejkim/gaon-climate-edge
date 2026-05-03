@@ -1,0 +1,29 @@
+# DHT 온습도 센서 설정입니다.
+sensor:
+  # 사용할 센서 종류입니다. 현재 프로그램은 DHT22를 기준으로 동작합니다.
+  type: DHT22
+  # 라즈베리파이에 연결된 GPIO 핀 이름입니다. docs/sample_dht.py 기준값은 D4입니다.
+  board_pin: D4
+  # 라즈베리파이 환경에서 pulseio 사용 여부입니다. DHT22 샘플과 동일하게 false를 기본값으로 둡니다.
+  use_pulseio: false
+
+# 센서 수집 주기와 값 검증 기준입니다.
+collection:
+  # 온습도 값을 수집하는 주기입니다. 60초는 1분마다 수집한다는 의미입니다.
+  interval_seconds: 60
+  # 직전 정상 온도와 현재 온도의 차이가 이 값보다 크면 이상값으로 보고 재측정합니다.
+  max_temperature_delta_c: 5.0
+  # 온도 차이가 너무 크거나 센서 읽기에 실패했을 때 최대 재시도 횟수입니다.
+  retry_limit: 3
+  # 재시도 사이에 대기할 시간입니다.
+  retry_delay_seconds: 2
+
+# 서버 전송 설정입니다. 실제 서버 주소와 인증키는 config/.env에서 관리합니다.
+server:
+  # prod 모드에서 POST 요청을 보낼 API 경로입니다. {device_id}는 device.id 값으로 치환됩니다.
+  endpoint: /climate/{device_id}
+
+# 이 장비를 구분하기 위한 식별자입니다.
+device:
+  # 서버에 전송되는 장비 ID입니다.
+  id: gaon-climate-edge-01
