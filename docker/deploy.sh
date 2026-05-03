@@ -66,7 +66,9 @@ fi
 
 echo "Building and starting gaon-climate-edge in $MODE mode"
 export CLIMATE_MODE="$MODE"
-compose -f docker/compose.yml up -d --build
+compose -f docker/compose.yml up -d --build --force-recreate
 
 echo "Done. Follow logs with:"
 echo "  cd $APP_DIR && CLIMATE_MODE=$MODE $COMPOSE_DISPLAY -f docker/compose.yml logs -f"
+echo "Log files are written to:"
+echo "  $APP_DIR/log"
