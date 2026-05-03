@@ -58,6 +58,7 @@ Docker 관련 파일은 `docker/` 디렉토리에 있습니다.
 
 - `docker/Dockerfile`: 실행 이미지 정의
 - `docker/compose.yml`: GPIO 장치 접근 권한, 설정 파일 마운트, 재시작 정책을 포함한 Compose 구성
+- `docker/deploy.sh`: 라즈베리파이에서 git clone/pull, Docker 빌드, 컨테이너 실행까지 처리하는 배포 스크립트
 - `docker/README.md`: Docker 실행 요약 문서
 
 ### 1. 라즈베리파이에 Docker 설치
@@ -71,7 +72,46 @@ docker compose version
 
 위 명령이 동작하지 않으면 Docker를 먼저 설치합니다.
 
-### 2. 환경 파일 준비
+### 2. 배포 스크립트 실행
+
+라즈베리파이에서 아래 명령으로 저장소를 받고, 최신 코드로 갱신하고, Docker 이미지를 빌드한 뒤 컨테이너를 실행할 수 있습니다.
+저장소 주소는 `https://github.com/doublejkim/gaon-climate-edge.git`입니다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/doublejkim/gaon-climate-edge/main/docker/deploy.sh -o /tmp/gaon-climate-deploy.sh
+chmod +x /tmp/gaon-climate-deploy.sh
+/tmp/gaon-climate-deploy.sh local
+```
+
+기본 설치 경로는 `$HOME/gaon-climate-edge`입니다.
+이미 저장소가 있으면 스크립트가 `git pull --ff-only`로 갱신합니다.
+
+설치 경로를 바꾸려면 `APP_DIR`을 지정합니다.
+
+```bash
+APP_DIR=/opt/gaon-climate-edge /tmp/gaon-climate-deploy.sh local
+```
+
+### 3. local 환경
+
+센서 연결과 로그 확인용 환경입니다.
+서버로 데이터를 전송하지 않으며 `config/.env`가 없어도 실행할 수 있습니다.
+
+```bash
+/tmp/gaon-climate-deploy.sh local
+```
+
+로그를 확인합니다.
+
+```bash
+cd ~/gaon-climate-edge
+CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
+```
+
+### 4. prod 환경
+
+운영 서버로 데이터를 전송하는 환경입니다.
+먼저 `config/.env` 파일을 준비합니다.
 
 `prod` 모드로 실행할 예정이라면 프로젝트 루트에서 `.env` 파일을 만듭니다.
 
@@ -91,7 +131,13 @@ REQUEST_TIMEOUT_SECONDS=10
 센서 GPIO 핀, 수집 주기, 장비 ID는 `config/config.yml`에서 수정합니다.
 Docker 실행 시 `config/` 디렉토리가 컨테이너의 `/app/config`로 읽기 전용 마운트됩니다.
 
-### 3. local 모드 실행
+prod 모드로 배포합니다.
+
+```bash
+/tmp/gaon-climate-deploy.sh prod
+```
+
+### 5. 수동 local 모드 실행
 
 기본 Docker 실행 모드는 `local`입니다.
 센서 값은 읽지만 서버로 POST 요청을 보내지 않습니다.
@@ -106,21 +152,15 @@ docker compose -f docker/compose.yml up -d --build
 docker compose -f docker/compose.yml logs -f
 ```
 
-### 4. prod 모드 실행
+### 6. 수동 prod 모드 실행
 
-운영 서버로 측정값을 전송하려면 `docker/compose.yml`의 `command`를 아래처럼 변경합니다.
-
-```yaml
-command: ["--mode", "prod"]
-```
-
-그 다음 컨테이너를 다시 빌드하고 실행합니다.
+운영 서버로 측정값을 전송하려면 `CLIMATE_MODE=prod`를 함께 지정합니다.
 
 ```bash
-docker compose -f docker/compose.yml up -d --build
+CLIMATE_MODE=prod docker compose -f docker/compose.yml up -d --build
 ```
 
-### 5. 중지 및 재시작
+### 7. 중지 및 재시작
 
 컨테이너를 중지합니다.
 

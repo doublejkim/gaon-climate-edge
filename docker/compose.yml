@@ -12,4 +12,4 @@ services:
     devices:
       - /dev/gpiomem:/dev/gpiomem
       - /dev/mem:/dev/mem
-    command: ["--mode", "local"]
+    command: ["--mode", "${CLIMATE_MODE:-local}"]
