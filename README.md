@@ -108,6 +108,14 @@ cd ~/gaon-climate-edge
 CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 ```
 
+라즈베리파이에서 소스 또는 Docker 의존성이 변경된 이후에는 배포 스크립트를 다시 실행하면 됩니다.
+스크립트가 `git pull --ff-only` 후 이미지를 다시 빌드하고 컨테이너를 재시작합니다.
+
+```bash
+cd ~/gaon-climate-edge
+./docker/deploy.sh local
+```
+
 ### 4. prod 환경
 
 운영 서버로 데이터를 전송하는 환경입니다.
@@ -179,6 +187,13 @@ docker compose -f docker/compose.yml restart
 DHT22 센서 라이브러리는 라즈베리파이의 GPIO 장치에 접근해야 합니다.
 `docker/compose.yml`은 이를 위해 `privileged: true`와 `/dev/gpiomem`, `/dev/mem` 장치 매핑을 포함합니다.
 배포 대상 라즈베리파이에 `/dev/gpiomem`이 없는 경우 `devices` 항목을 환경에 맞게 조정하거나 `privileged: true`만으로 실행되는지 확인합니다.
+
+라즈베리파이 5처럼 `bcm2712` GPIO를 사용하는 환경에서 `ModuleNotFoundError: No module named 'lgpio'`가 발생하면 최신 소스를 받은 뒤 Docker 이미지를 다시 빌드합니다.
+
+```bash
+cd ~/gaon-climate-edge
+./docker/deploy.sh local
+```
 
 ## local 모드
 

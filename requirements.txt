@@ -1,4 +1,5 @@
 adafruit-circuitpython-dht
+lgpio
 python-dotenv
 PyYAML
 requests

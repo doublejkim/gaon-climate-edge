@@ -43,6 +43,14 @@ cd ~/gaon-climate-edge
 CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 ```
 
+라즈베리파이에서 소스가 변경되었거나 Docker 의존성이 바뀌었을 때도 같은 명령을 다시 실행하면 됩니다.
+스크립트가 `git pull --ff-only` 후 이미지를 다시 빌드하고 컨테이너를 재시작합니다.
+
+```bash
+cd ~/gaon-climate-edge
+./docker/deploy.sh local
+```
+
 ### prod 환경
 
 운영 서버로 데이터를 전송하는 환경입니다.
@@ -106,4 +114,19 @@ docker compose -f docker/compose.yml logs -f
 
 ```bash
 docker compose -f docker/compose.yml down
+```
+
+## 문제 해결
+
+라즈베리파이 5처럼 `bcm2712` GPIO를 사용하는 환경에서 아래 오류가 나면 Docker 이미지에 `lgpio` Python 모듈이 없는 상태입니다.
+
+```text
+ModuleNotFoundError: No module named 'lgpio'
+```
+
+최신 소스를 받은 뒤 이미지를 다시 빌드합니다.
+
+```bash
+cd ~/gaon-climate-edge
+./docker/deploy.sh local
 ```
