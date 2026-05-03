@@ -43,6 +43,7 @@ else
 fi
 
 cd "$APP_DIR"
+mkdir -p log
 
 if [ "$MODE" = "prod" ]; then
     if [ ! -f config/.env ]; then

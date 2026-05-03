@@ -23,6 +23,11 @@ server:
   # prod 모드에서 POST 요청을 보낼 API 경로입니다. {device_id}는 device.id 값으로 치환됩니다.
   endpoint: /climate/{device_id}
 
+# 로그 파일 운영 설정입니다.
+logging:
+  # 로그 파일 보관 기간입니다. 7은 7일, 즉 168시간 보관을 의미합니다.
+  retention_days: 7
+
 # 이 장비를 구분하기 위한 식별자입니다.
 device:
   # 서버에 전송되는 장비 ID입니다.

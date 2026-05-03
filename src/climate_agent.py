@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import sys
 import time
 from argparse import ArgumentParser
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +15,9 @@ from typing import Any
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = ROOT_DIR / "config" / "config.yml"
 DEFAULT_ENV_PATH = ROOT_DIR / "config" / ".env"
+DEFAULT_LOG_DIR = ROOT_DIR / "log"
+LOG_FILE_PREFIX = "gaon-climate-edge"
+DEFAULT_LOG_RETENTION_DAYS = 3
 
 
 @dataclass(frozen=True)
@@ -38,10 +43,16 @@ class ServerConfig:
 
 
 @dataclass(frozen=True)
+class LoggingConfig:
+    retention_days: int
+
+
+@dataclass(frozen=True)
 class AppConfig:
     sensor: SensorConfig
     collection: CollectionConfig
     server: ServerConfig
+    logging: LoggingConfig
     device_id: str
 
 
@@ -50,6 +61,68 @@ class ClimateReading:
     temperature_c: float
     humidity: float
     measured_at: str
+
+
+class HourlyLogFileHandler(logging.Handler):
+    def __init__(
+        self,
+        log_dir: Path = DEFAULT_LOG_DIR,
+        retention_days: int = DEFAULT_LOG_RETENTION_DAYS,
+    ) -> None:
+        super().__init__()
+        self._log_dir = log_dir
+        self._retention_days = retention_days
+        self._current_hour: str | None = None
+        self._stream = None
+        self._log_dir.mkdir(parents=True, exist_ok=True)
+        self._cleanup_old_logs(datetime.now())
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            now = datetime.fromtimestamp(record.created)
+            hour_key = now.strftime("%Y%m%d.%H")
+            if hour_key != self._current_hour:
+                self._rotate(hour_key, now)
+
+            message = self.format(record)
+            if self._stream is None:
+                self._rotate(hour_key, now)
+            self._stream.write(f"{message}\n")
+            self._stream.flush()
+        except Exception:
+            self.handleError(record)
+
+    def close(self) -> None:
+        if self._stream:
+            self._stream.close()
+            self._stream = None
+        super().close()
+
+    def _rotate(self, hour_key: str, now: datetime) -> None:
+        if self._stream:
+            self._stream.close()
+
+        self._current_hour = hour_key
+        log_path = self._log_dir / f"{LOG_FILE_PREFIX}.{hour_key}.log"
+        self._stream = log_path.open("a", encoding="utf-8")
+        self._cleanup_old_logs(now)
+
+    def _cleanup_old_logs(self, now: datetime) -> None:
+        cutoff = now - timedelta(days=self._retention_days)
+        pattern = re.compile(rf"^{re.escape(LOG_FILE_PREFIX)}\.(\d{{8}})\.(\d{{2}})\.log$")
+
+        for log_path in self._log_dir.glob(f"{LOG_FILE_PREFIX}.*.*.log"):
+            match = pattern.match(log_path.name)
+            if not match:
+                continue
+
+            try:
+                log_hour = datetime.strptime("".join(match.groups()), "%Y%m%d%H")
+            except ValueError:
+                continue
+
+            if log_hour < cutoff:
+                log_path.unlink(missing_ok=True)
 
 
 class DhtSensor:
@@ -93,6 +166,7 @@ def load_config(
     sensor = raw.get("sensor", {})
     collection = raw.get("collection", {})
     server = raw.get("server", {})
+    logging_config = raw.get("logging", {})
     device = raw.get("device", {})
 
     base_url = os.getenv("CLIMATE_SERVER_URL", "").rstrip("/") or None
@@ -115,6 +189,9 @@ def load_config(
             endpoint=str(server.get("endpoint", "/climate/{device_id}")),
             api_key=os.getenv("CLIMATE_API_KEY") or None,
             timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "10")),
+        ),
+        logging=LoggingConfig(
+            retention_days=max(1, int(logging_config.get("retention_days", DEFAULT_LOG_RETENTION_DAYS))),
         ),
         device_id=str(device.get("id", "gaon-climate-edge-01")),
     )
@@ -200,6 +277,28 @@ def parse_args() -> str:
     return parser.parse_args().mode
 
 
+def configure_logging(mode: str, logging_config: LoggingConfig) -> None:
+    log_level = logging.DEBUG if mode == "local" else logging.INFO
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+        handler.close()
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(log_level)
+    stream_handler.setFormatter(formatter)
+
+    file_handler = HourlyLogFileHandler(retention_days=logging_config.retention_days)
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(formatter)
+
+    root_logger.addHandler(stream_handler)
+    root_logger.addHandler(file_handler)
+
+
 def handle_reading(mode: str, config: AppConfig, reading: ClimateReading) -> None:
     logging.info(
         "Collected climate reading: %.1f C, %.1f%% at %s",
@@ -217,13 +316,9 @@ def handle_reading(mode: str, config: AppConfig, reading: ClimateReading) -> Non
 
 
 def run() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
-
     mode = parse_args()
     config = load_config(mode)
+    configure_logging(mode, config.logging)
     sensor = DhtSensor(config.sensor)
     previous_reading: ClimateReading | None = None
     logging.info("Climate agent started in %s mode", mode)

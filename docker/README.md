@@ -43,6 +43,10 @@ cd ~/gaon-climate-edge
 CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 ```
 
+파일 로그는 호스트의 `log/` 디렉토리에 남습니다.
+컨테이너에서는 `/app/log`로 마운트됩니다.
+`local` 모드는 `DEBUG`, `INFO`, `WARNING`, `ERROR` 레벨 로그를 모두 기록합니다.
+
 라즈베리파이에서 소스가 변경되었거나 Docker 의존성이 바뀌었을 때도 같은 명령을 다시 실행하면 됩니다.
 스크립트가 `git pull --ff-only` 후 이미지를 다시 빌드하고 컨테이너를 재시작합니다.
 
@@ -83,6 +87,8 @@ cd ~/gaon-climate-edge
 CLIMATE_MODE=prod docker compose -f docker/compose.yml logs -f
 ```
 
+`prod` 모드는 `INFO`, `WARNING`, `ERROR` 레벨 로그를 기록합니다.
+
 ## 수동 실행
 
 `prod` 모드로 실행할 예정이라면 프로젝트 루트에서 환경 파일을 준비합니다.
@@ -114,6 +120,33 @@ docker compose -f docker/compose.yml logs -f
 
 ```bash
 docker compose -f docker/compose.yml down
+```
+
+## 파일 로그
+
+로그 파일은 프로젝트의 `log/` 디렉토리에 생성됩니다.
+Docker 실행 시 호스트의 `log/` 디렉토리가 컨테이너의 `/app/log`로 마운트됩니다.
+
+파일명 형식은 아래와 같습니다.
+
+```text
+gaon-climate-edge.YYYYMMDD.HH.log
+```
+
+예시는 아래와 같습니다.
+
+```text
+gaon-climate-edge.20260503.09.log
+gaon-climate-edge.20260503.17.log
+```
+
+시간은 24시간제이며 한 자리 숫자는 `09`처럼 두 자리로 기록합니다.
+로그 파일은 시간 단위로 바뀌고, `config/config.yml`의 `logging.retention_days`를 초과한 `gaon-climate-edge.*.*.log` 파일은 앱 시작 및 시간 변경 시 자동 삭제됩니다.
+기본값은 `3`이며 3일, 즉 72시간 보관을 의미합니다.
+
+```yaml
+logging:
+  retention_days: 3
 ```
 
 ## 문제 해결

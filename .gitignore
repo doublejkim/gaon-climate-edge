@@ -3,3 +3,6 @@ env/.env
 docs/agent.md
 __pycache__/
 *.py[cod]
+!log/
+log/*
+!log/.gitkeep
