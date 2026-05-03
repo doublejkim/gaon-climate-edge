@@ -51,6 +51,95 @@ python3 src/climate_agent.py --mode local
 python3 src/climate_agent.py --mode prod
 ```
 
+## Docker로 라즈베리파이에 배포
+
+라즈베리파이에서 직접 Python 환경을 맞추지 않고 Docker로 실행할 수 있습니다.
+Docker 관련 파일은 `docker/` 디렉토리에 있습니다.
+
+- `docker/Dockerfile`: 실행 이미지 정의
+- `docker/compose.yml`: GPIO 장치 접근 권한, 설정 파일 마운트, 재시작 정책을 포함한 Compose 구성
+- `docker/README.md`: Docker 실행 요약 문서
+
+### 1. 라즈베리파이에 Docker 설치
+
+라즈베리파이에서 Docker와 Docker Compose v2가 필요합니다.
+
+```bash
+docker --version
+docker compose version
+```
+
+위 명령이 동작하지 않으면 Docker를 먼저 설치합니다.
+
+### 2. 환경 파일 준비
+
+`prod` 모드로 실행할 예정이라면 프로젝트 루트에서 `.env` 파일을 만듭니다.
+
+```bash
+cp config/.env.example config/.env
+```
+
+`local` 모드는 `config/.env`가 없어도 실행할 수 있습니다.
+`prod` 모드로 서버에 전송하려면 `config/.env`에 실제 서버 주소를 넣습니다.
+
+```bash
+CLIMATE_SERVER_URL=https://example.com
+CLIMATE_API_KEY=
+REQUEST_TIMEOUT_SECONDS=10
+```
+
+센서 GPIO 핀, 수집 주기, 장비 ID는 `config/config.yml`에서 수정합니다.
+Docker 실행 시 `config/` 디렉토리가 컨테이너의 `/app/config`로 읽기 전용 마운트됩니다.
+
+### 3. local 모드 실행
+
+기본 Docker 실행 모드는 `local`입니다.
+센서 값은 읽지만 서버로 POST 요청을 보내지 않습니다.
+
+```bash
+docker compose -f docker/compose.yml up -d --build
+```
+
+로그를 확인합니다.
+
+```bash
+docker compose -f docker/compose.yml logs -f
+```
+
+### 4. prod 모드 실행
+
+운영 서버로 측정값을 전송하려면 `docker/compose.yml`의 `command`를 아래처럼 변경합니다.
+
+```yaml
+command: ["--mode", "prod"]
+```
+
+그 다음 컨테이너를 다시 빌드하고 실행합니다.
+
+```bash
+docker compose -f docker/compose.yml up -d --build
+```
+
+### 5. 중지 및 재시작
+
+컨테이너를 중지합니다.
+
+```bash
+docker compose -f docker/compose.yml down
+```
+
+설정만 바꾼 뒤 다시 시작할 때는 아래 명령을 사용할 수 있습니다.
+
+```bash
+docker compose -f docker/compose.yml restart
+```
+
+### GPIO 권한 참고
+
+DHT22 센서 라이브러리는 라즈베리파이의 GPIO 장치에 접근해야 합니다.
+`docker/compose.yml`은 이를 위해 `privileged: true`와 `/dev/gpiomem`, `/dev/mem` 장치 매핑을 포함합니다.
+배포 대상 라즈베리파이에 `/dev/gpiomem`이 없는 경우 `devices` 항목을 환경에 맞게 조정하거나 `privileged: true`만으로 실행되는지 확인합니다.
+
 ## local 모드
 
 개발 또는 현장 점검용 모드입니다.

@@ -1,0 +1,15 @@
+services:
+  climate-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: gaon-climate-edge:latest
+    container_name: gaon-climate-edge
+    restart: unless-stopped
+    volumes:
+      - ../config:/app/config:ro
+    privileged: true
+    devices:
+      - /dev/gpiomem:/dev/gpiomem
+      - /dev/mem:/dev/mem
+    command: ["--mode", "local"]
