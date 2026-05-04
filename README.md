@@ -28,7 +28,7 @@ pip install -r requirements.txt
 - `collection.retry_delay_seconds`: 재시도 사이 대기 시간
 - `server.endpoint`: 서버로 전송할 API 경로
 - `logging.retention_days`: 로그 파일 보관 일수
-- `device.id`: 서버에 함께 전달할 장비 식별자
+- `device.key`: 서버 호출 URL에 포함할 장비 키
 
 서버 접속 정보는 `config/.env`에서 관리합니다.
 이 파일은 `.gitignore`에 등록되어 있으므로 git으로 관리되지 않습니다.
@@ -148,7 +148,7 @@ CLIMATE_API_KEY=
 REQUEST_TIMEOUT_SECONDS=10
 ```
 
-센서 GPIO 핀, 수집 주기, 장비 ID는 `config/config.yml`에서 수정합니다.
+센서 GPIO 핀, 수집 주기, 장비 키는 `config/config.yml`에서 수정합니다.
 Docker 실행 시 `config/` 디렉토리가 컨테이너의 `/app/config`로 읽기 전용 마운트됩니다.
 
 prod 모드로 배포합니다.
@@ -264,7 +264,7 @@ python3 src/climate_agent.py --mode local
 전송 URL은 아래처럼 만들어집니다.
 
 ```text
-{CLIMATE_SERVER_URL}/climate/{device_id}
+{CLIMATE_SERVER_URL}/clidmate/{device_key}
 ```
 
 예시:
@@ -289,7 +289,6 @@ python3 src/climate_agent.py --mode prod
 
 ```json
 {
-  "device_id": "gaon-climate-edge-01",
   "temperature_c": 24.5,
   "humidity": 55.0,
   "measured_at": "2026-05-03T04:00:00+00:00"

@@ -53,7 +53,7 @@ class AppConfig:
     collection: CollectionConfig
     server: ServerConfig
     logging: LoggingConfig
-    device_id: str
+    device_key: str
 
 
 @dataclass(frozen=True)
@@ -186,14 +186,14 @@ def load_config(
         ),
         server=ServerConfig(
             base_url=base_url,
-            endpoint=str(server.get("endpoint", "/climate/{device_id}")),
+            endpoint=str(server.get("endpoint", "/clidmate/{device_key}")),
             api_key=os.getenv("CLIMATE_API_KEY") or None,
             timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "10")),
         ),
         logging=LoggingConfig(
             retention_days=max(1, int(logging_config.get("retention_days", DEFAULT_LOG_RETENTION_DAYS))),
         ),
-        device_id=str(device.get("id", "gaon-climate-edge-01")),
+        device_key=str(device.get("key", device.get("id", "gaon-climate-edge-01"))),
     )
 
 
@@ -201,7 +201,7 @@ def build_url(config: AppConfig) -> str:
     if not config.server.base_url:
         raise ValueError("CLIMATE_SERVER_URL is required to build the server URL")
 
-    endpoint = config.server.endpoint.format(device_id=config.device_id).lstrip("/")
+    endpoint = config.server.endpoint.format(device_key=config.device_key, device_id=config.device_key).lstrip("/")
     return f"{config.server.base_url}/{endpoint}"
 
 
@@ -247,7 +247,6 @@ def post_reading(config: AppConfig, reading: ClimateReading) -> None:
     import requests
 
     payload: dict[str, Any] = {
-        "device_id": config.device_id,
         "temperature_c": reading.temperature_c,
         "humidity": reading.humidity,
         "measured_at": reading.measured_at,
