@@ -20,15 +20,16 @@ collection:
 
 # 서버 전송 설정입니다. 실제 서버 주소와 인증키는 config/.env에서 관리합니다.
 server:
-  # prod 모드에서 POST 요청을 보낼 API 경로입니다. {device_key}는 device.key 값으로 치환됩니다.
+  # prod 모드에서 POST 요청을 보낼 API 경로입니다. {device_key}는 디바이스 키 파일 값으로 치환됩니다.
   endpoint: /clidmate/{device_key}
+  # 디바이스 키 파일이 없을 때 디바이스 등록 요청을 보낼 API 경로입니다.
+  registration_endpoint: /devices/register
 
 # 로그 파일 운영 설정입니다.
 logging:
   # 로그 파일 보관 기간입니다. 7은 7일, 즉 168시간 보관을 의미합니다.
   retention_days: 7
 
-# 이 장비를 구분하기 위한 식별자입니다.
+# 이 장비를 구분하기 위한 로컬 이름입니다. 디바이스 등록 요청 payload에 포함됩니다.
 device:
-  # 서버 호출 URL에 포함되는 장비 키입니다.
-  key: gaon-climate-edge-01
+  name: gaon-climate-edge-01

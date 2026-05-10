@@ -16,6 +16,12 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = ROOT_DIR / "config" / "config.yml"
 DEFAULT_ENV_PATH = ROOT_DIR / "config" / ".env"
 DEFAULT_LOG_DIR = ROOT_DIR / "log"
+# Docker 컨테이너는 root로 실행되므로 Path.home()은 /root를 가리킵니다.
+# 호스트의 /home/doublej/.config/gaon-climate 디렉토리를
+# 컨테이너의 /root/.config/gaon-climate로 마운트해서 이 경로와 맞춥니다.
+# 다른 라즈베리파이 사용자 계정으로 바꿀 때는 docker/deploy.sh의
+# DEVICE_CONFIG_DIR 기본값도 같은 호스트 계정 경로로 함께 변경하세요.
+DEFAULT_DEVICE_KEY_PATH = Path("/root/.config/gaon-climate/device-key")
 LOG_FILE_PREFIX = "gaon-climate-edge"
 DEFAULT_LOG_RETENTION_DAYS = 3
 
@@ -38,8 +44,15 @@ class CollectionConfig:
 class ServerConfig:
     base_url: str | None
     endpoint: str
+    registration_endpoint: str
     api_key: str | None
     timeout_seconds: float
+
+
+@dataclass(frozen=True)
+class DeviceConfig:
+    name: str
+    key_path: Path
 
 
 @dataclass(frozen=True)
@@ -52,8 +65,8 @@ class AppConfig:
     sensor: SensorConfig
     collection: CollectionConfig
     server: ServerConfig
+    device: DeviceConfig
     logging: LoggingConfig
-    device_key: str
 
 
 @dataclass(frozen=True)
@@ -187,22 +200,145 @@ def load_config(
         server=ServerConfig(
             base_url=base_url,
             endpoint=str(server.get("endpoint", "/clidmate/{device_key}")),
+            registration_endpoint=str(server.get("registration_endpoint", "/clidmate")),
             api_key=os.getenv("CLIMATE_API_KEY") or None,
             timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "10")),
+        ),
+        device=DeviceConfig(
+            name=str(device.get("name", device.get("key", device.get("id", "gaon-climate-edge-01")))),
+            key_path=DEFAULT_DEVICE_KEY_PATH,
         ),
         logging=LoggingConfig(
             retention_days=max(1, int(logging_config.get("retention_days", DEFAULT_LOG_RETENTION_DAYS))),
         ),
-        device_key=str(device.get("key", device.get("id", "gaon-climate-edge-01"))),
     )
 
 
-def build_url(config: AppConfig) -> str:
+def build_url(config: AppConfig, device_key: str) -> str:
     if not config.server.base_url:
         raise ValueError("CLIMATE_SERVER_URL is required to build the server URL")
 
-    endpoint = config.server.endpoint.format(device_key=config.device_key, device_id=config.device_key).lstrip("/")
+    endpoint = config.server.endpoint.format(device_key=device_key, device_id=device_key).lstrip("/")
     return f"{config.server.base_url}/{endpoint}"
+
+
+def build_registration_url(config: AppConfig) -> str:
+    if not config.server.base_url:
+        raise ValueError("CLIMATE_SERVER_URL is required to build the registration URL")
+
+    endpoint = config.server.registration_endpoint.lstrip("/")
+    return f"{config.server.base_url}/{endpoint}"
+
+
+def build_headers(config: AppConfig) -> dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+
+    if config.server.api_key:
+        headers["Authorization"] = f"Bearer {config.server.api_key}"
+
+    return headers
+
+
+def read_device_key(key_path: Path) -> str | None:
+    if not key_path.exists():
+        return None
+
+    device_key = key_path.read_text(encoding="utf-8").strip()
+    if not device_key:
+        raise RuntimeError(f"Device key file is empty: {key_path}")
+
+    return device_key
+
+
+def extract_device_key(response: Any) -> str:
+    try:
+        raw = response.json()
+    except ValueError:
+        raw = response.text.strip()
+
+    if isinstance(raw, dict):
+        for key in ("device_key", "deviceKey", "key"):
+            value = raw.get(key)
+            if value:
+                return str(value).strip()
+
+    if isinstance(raw, str) and raw:
+        return raw
+
+    raise RuntimeError("Device registration response did not include a device key")
+
+
+def write_device_key(key_path: Path, device_key: str) -> None:
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+    key_path.parent.chmod(0o700)
+    key_path.write_text(f"{device_key}\n", encoding="utf-8")
+    key_path.chmod(0o600)
+
+
+def register_device(config: AppConfig) -> str:
+    import requests
+
+    payload = {
+        "device_name": config.device.name,
+    }
+    try:
+        response = requests.post(
+            build_registration_url(config),
+            json=payload,
+            headers=build_headers(config),
+            timeout=config.server.timeout_seconds,
+        )
+    except requests.RequestException as error:
+        logging.error("Device registration request failed: %s", error)
+        raise SystemExit(1) from error
+
+    if response.status_code in (401, 409) or response.status_code >= 500:
+        logging.error(
+            "Device registration failed with HTTP %s: %s",
+            response.status_code,
+            response.text.strip(),
+        )
+        raise SystemExit(1)
+
+    if response.status_code != 200:
+        logging.error(
+            "Device registration returned unexpected HTTP %s: %s",
+            response.status_code,
+            response.text.strip(),
+        )
+        raise SystemExit(1)
+
+    try:
+        device_key = extract_device_key(response)
+    except RuntimeError as error:
+        logging.error("%s", error)
+        raise SystemExit(1) from error
+
+    write_device_key(config.device.key_path, device_key)
+    logging.info("Device registration succeeded and key was saved to %s", config.device.key_path)
+    return device_key
+
+
+def ensure_device_key(mode: str, config: AppConfig) -> str | None:
+    if mode == "local":
+        try:
+            return read_device_key(config.device.key_path)
+        except RuntimeError as error:
+            logging.warning("%s", error)
+            return None
+
+    try:
+        device_key = read_device_key(config.device.key_path)
+    except RuntimeError as error:
+        logging.error("%s", error)
+        raise SystemExit(1) from error
+
+    if device_key:
+        logging.info("Loaded device key from %s", config.device.key_path)
+        return device_key
+
+    logging.info("Device key file not found at %s; requesting device registration", config.device.key_path)
+    return register_device(config)
 
 
 def read_with_validation(
@@ -243,7 +379,7 @@ def read_with_validation(
     raise RuntimeError("Could not obtain a stable temperature reading")
 
 
-def post_reading(config: AppConfig, reading: ClimateReading) -> None:
+def post_reading(config: AppConfig, device_key: str, reading: ClimateReading) -> None:
     import requests
 
     payload: dict[str, Any] = {
@@ -251,15 +387,11 @@ def post_reading(config: AppConfig, reading: ClimateReading) -> None:
         "humidity": reading.humidity,
         "measured_at": reading.measured_at,
     }
-    headers = {"Content-Type": "application/json"}
-
-    if config.server.api_key:
-        headers["Authorization"] = f"Bearer {config.server.api_key}"
 
     response = requests.post(
-        build_url(config),
+        build_url(config, device_key),
         json=payload,
-        headers=headers,
+        headers=build_headers(config),
         timeout=config.server.timeout_seconds,
     )
     response.raise_for_status()
@@ -298,7 +430,7 @@ def configure_logging(mode: str, logging_config: LoggingConfig) -> None:
     root_logger.addHandler(file_handler)
 
 
-def handle_reading(mode: str, config: AppConfig, reading: ClimateReading) -> None:
+def handle_reading(mode: str, config: AppConfig, device_key: str | None, reading: ClimateReading) -> None:
     logging.info(
         "Collected climate reading: %.1f C, %.1f%% at %s",
         reading.temperature_c,
@@ -310,14 +442,18 @@ def handle_reading(mode: str, config: AppConfig, reading: ClimateReading) -> Non
         logging.info("Local mode: skipped POST to %s", config.server.endpoint)
         return
 
-    post_reading(config, reading)
-    logging.info("Prod mode: posted climate reading to %s", build_url(config))
+    if device_key is None:
+        raise RuntimeError("Device key is required in prod mode")
+
+    post_reading(config, device_key, reading)
+    logging.info("Prod mode: posted climate reading to %s", build_url(config, device_key))
 
 
 def run() -> None:
     mode = parse_args()
     config = load_config(mode)
     configure_logging(mode, config.logging)
+    device_key = ensure_device_key(mode, config)
     sensor = DhtSensor(config.sensor)
     previous_reading: ClimateReading | None = None
     logging.info("Climate agent started in %s mode", mode)
@@ -326,7 +462,7 @@ def run() -> None:
         while True:
             try:
                 reading = read_with_validation(sensor, previous_reading, config.collection)
-                handle_reading(mode, config, reading)
+                handle_reading(mode, config, device_key, reading)
                 previous_reading = reading
             except Exception:
                 logging.exception("Climate collection cycle failed")

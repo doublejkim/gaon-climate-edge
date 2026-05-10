@@ -95,6 +95,10 @@ CLIMATE_MODE=prod docker compose -f docker/compose.yml logs -f
 ```
 
 `prod` 모드는 `INFO`, `WARNING`, `ERROR` 레벨 로그를 기록합니다.
+디바이스 키 파일은 기본적으로 호스트의 `/home/doublej/.config/gaon-climate/device-key`에 저장되고, 컨테이너에서는 `/root/.config/gaon-climate/device-key`로 마운트됩니다.
+다른 사용자 계정 경로를 쓰려면 `DEVICE_CONFIG_DIR=/home/다른계정/.config/gaon-climate ./docker/deploy.sh prod`처럼 실행하거나 `docker/deploy.sh`의 `DEVICE_CONFIG_DIR` 기본값을 변경합니다.
+키 파일이 없으면 `config/config.yml`의 `server.registration_endpoint`로 등록 요청을 보냅니다.
+등록 요청이 `401`, `409`, `5xx` 응답을 받으면 로그를 남기고 프로그램을 종료합니다.
 
 ## 수동 실행
 
@@ -155,6 +159,39 @@ gaon-climate-edge.20260503.17.log
 logging:
   retention_days: 3
 ```
+
+## 디바이스 등록
+
+`prod` 모드에서 디바이스 키 파일이 없으면 서버에 디바이스 등록을 요청합니다.
+
+키 파일 위치:
+
+```text
+/home/doublej/.config/gaon-climate/device-key
+```
+
+등록 요청 URL:
+
+```text
+{CLIMATE_SERVER_URL}{server.registration_endpoint}
+```
+
+기본값은 아래와 같습니다.
+
+```yaml
+server:
+  registration_endpoint: /clidmate
+```
+
+등록 요청 payload:
+
+```json
+{
+  "device_name": "gaon-climate-edge-01"
+}
+```
+
+등록 응답은 `device_key`, `deviceKey`, `key` 필드를 가진 JSON 또는 plain text 키를 지원합니다.
 
 ## 문제 해결
 

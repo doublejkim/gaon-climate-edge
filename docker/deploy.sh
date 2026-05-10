@@ -54,6 +54,13 @@ cd "$APP_DIR"
 mkdir -p log
 export APP_CONFIG_DIR="$APP_DIR/config"
 export APP_LOG_DIR="$APP_DIR/log"
+# Device key storage on the Raspberry Pi host.
+# Change this path when the service should use another Linux account.
+# The compose file mounts this host directory to /root/.config/gaon-climate
+# because the Python process runs as root inside the container.
+DEVICE_CONFIG_DIR="${DEVICE_CONFIG_DIR:-/home/doublej/.config/gaon-climate}"
+mkdir -p "$DEVICE_CONFIG_DIR"
+export APP_DEVICE_CONFIG_DIR="$DEVICE_CONFIG_DIR"
 
 if [ "$MODE" = "prod" ]; then
     if [ ! -f config/.env ]; then
@@ -84,3 +91,5 @@ echo "Log files are written to:"
 echo "  $APP_DIR/log"
 echo "Mounted container log path:"
 echo "  $APP_LOG_DIR -> /app/log"
+echo "Device key file path:"
+echo "  $APP_DEVICE_CONFIG_DIR/device-key"

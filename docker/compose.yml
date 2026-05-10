@@ -9,6 +9,7 @@ services:
     volumes:
       - ${APP_CONFIG_DIR:-../config}:/app/config:ro
       - ${APP_LOG_DIR:-../log}:/app/log
+      - ${APP_DEVICE_CONFIG_DIR:-/home/doublej/.config/gaon-climate}:/root/.config/gaon-climate
     privileged: true
     devices:
       - /dev/gpiomem:/dev/gpiomem
