@@ -5,10 +5,12 @@ services:
       dockerfile: docker/Dockerfile
     image: gaon-climate-edge:latest
     container_name: gaon-climate-edge
-    restart: unless-stopped
+    restart: on-failure
     volumes:
       - ${APP_CONFIG_DIR:-../config}:/app/config:ro
       - ${APP_LOG_DIR:-../log}:/app/log
+      - ${APP_DEVICE_CONFIG_DIR:-/home/doublej/.config/gaon-climate}:/root/.config/gaon-climate
+      - /etc/localtime:/etc/localtime:ro
     privileged: true
     devices:
       - /dev/gpiomem:/dev/gpiomem

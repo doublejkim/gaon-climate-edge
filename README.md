@@ -27,8 +27,9 @@ pip install -r requirements.txt
 - `collection.retry_limit`: 이상값 또는 센서 읽기 실패 시 재시도 횟수
 - `collection.retry_delay_seconds`: 재시도 사이 대기 시간
 - `server.endpoint`: 서버로 전송할 API 경로
+- `server.registration_endpoint`: 디바이스 키 파일이 없을 때 등록 요청을 보낼 API 경로
 - `logging.retention_days`: 로그 파일 보관 일수
-- `device.key`: 서버 호출 URL에 포함할 장비 키
+- `device.name`: 디바이스 등록 요청에 포함할 로컬 장비 이름
 
 서버 접속 정보는 `config/.env`에서 관리합니다.
 이 파일은 `.gitignore`에 등록되어 있으므로 git으로 관리되지 않습니다.
@@ -112,6 +113,7 @@ CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 파일 로그는 호스트의 `log/` 디렉토리에 남습니다.
 컨테이너에서는 `/app/log`로 마운트됩니다.
 `local` 모드는 `DEBUG`, `INFO`, `WARNING`, `ERROR` 레벨 로그를 모두 기록합니다.
+Docker 실행 시 호스트의 `/etc/localtime`을 컨테이너에 마운트하므로 로그의 `asctime`은 라즈베리파이 시스템 로컬타임을 따릅니다.
 
 마운트된 호스트 경로는 배포 스크립트 실행 마지막에 출력됩니다.
 컨테이너가 실제로 어떤 경로를 마운트했는지는 아래처럼 확인합니다.
@@ -148,8 +150,10 @@ CLIMATE_API_KEY=
 REQUEST_TIMEOUT_SECONDS=10
 ```
 
-센서 GPIO 핀, 수집 주기, 장비 키는 `config/config.yml`에서 수정합니다.
+센서 GPIO 핀, 수집 주기, 로컬 장비 이름은 `config/config.yml`에서 수정합니다.
 Docker 실행 시 `config/` 디렉토리가 컨테이너의 `/app/config`로 읽기 전용 마운트됩니다.
+디바이스 키 파일은 기본적으로 호스트의 `/home/doublej/.config/gaon-climate/device-key`에 저장되고, 컨테이너에서는 `/root/.config/gaon-climate/device-key`로 마운트됩니다.
+다른 사용자 계정 경로를 쓰려면 `DEVICE_CONFIG_DIR=/home/다른계정/.config/gaon-climate ./docker/deploy.sh prod`처럼 실행하거나 `docker/deploy.sh`의 `DEVICE_CONFIG_DIR` 기본값을 변경합니다.
 
 prod 모드로 배포합니다.
 
@@ -228,6 +232,7 @@ gaon-climate-edge.20260503.17.log
 ```
 
 시간은 24시간제이며 한 자리 숫자는 `09`처럼 두 자리로 기록합니다.
+로그 본문 시간은 라즈베리파이 시스템 로컬타임으로 기록됩니다.
 로그 파일은 시간 단위로 바뀌고, `config/config.yml`의 `logging.retention_days`를 초과한 `gaon-climate-edge.*.*.log` 파일은 앱 시작 및 시간 변경 시 자동 삭제됩니다.
 기본값은 `3`이며 3일, 즉 72시간 보관을 의미합니다.
 
@@ -260,6 +265,11 @@ python3 src/climate_agent.py --mode local
 - 정상 수집된 값만 서버로 전송합니다.
 - `config/.env`에 `CLIMATE_SERVER_URL`이 반드시 필요합니다.
 - `CLIMATE_API_KEY`가 있으면 `Authorization: Bearer ...` 헤더로 함께 전송합니다.
+- 실행 시 `/home/doublej/.config/gaon-climate/device-key` 파일을 확인합니다.
+- 디바이스 키 파일이 없으면 `server.registration_endpoint`로 등록 요청을 보냅니다.
+- 등록 요청이 `401`, `409`, `5xx` 응답을 받으면 로그를 남기고 종료합니다.
+- 등록 요청이 `200 OK`이고 응답에서 디바이스 키를 읽으면 키 파일에 저장한 뒤 온습도 전송을 시작합니다.
+- 등록 실패는 정상 종료 코드로 종료되므로 Docker가 같은 등록 실패를 무한 반복하지 않습니다.
 
 전송 URL은 아래처럼 만들어집니다.
 
@@ -291,9 +301,44 @@ python3 src/climate_agent.py --mode prod
 {
   "temperature_c": 24.5,
   "humidity": 55.0,
-  "measured_at": "2026-05-03T04:00:00+00:00"
+  "measured_at": "2026-05-03T13:00:00"
 }
 ```
+
+`measured_at`은 클라이언트 시스템의 로컬 시간을 사용하며 timezone offset은 포함하지 않습니다.
+
+## 디바이스 등록
+
+`prod` 모드에서 디바이스 키 파일이 없으면 서버에 디바이스 등록을 요청합니다.
+
+키 파일 위치:
+
+```text
+/home/doublej/.config/gaon-climate/device-key
+```
+
+등록 요청 URL:
+
+```text
+{CLIMATE_SERVER_URL}{server.registration_endpoint}
+```
+
+기본값은 아래와 같습니다.
+
+```yaml
+server:
+  registration_endpoint: /clidmate
+```
+
+등록 요청 payload:
+
+```json
+{
+  "device_name": "gaon-climate-edge-01"
+}
+```
+
+등록 응답은 `device_key`, `deviceKey`, `key` 필드를 가진 JSON 또는 plain text 키를 지원합니다.
 
 ## 도움말
 
