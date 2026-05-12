@@ -7,7 +7,7 @@ import sys
 import time
 from argparse import ArgumentParser
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +156,7 @@ class DhtSensor:
         return ClimateReading(
             temperature_c=float(temperature_c),
             humidity=float(humidity),
-            measured_at=datetime.now(timezone.utc).isoformat(),
+            measured_at=datetime.now().isoformat(timespec="seconds"),
         )
 
     def close(self) -> None:

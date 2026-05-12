@@ -299,9 +299,11 @@ python3 src/climate_agent.py --mode prod
 {
   "temperature_c": 24.5,
   "humidity": 55.0,
-  "measured_at": "2026-05-03T04:00:00+00:00"
+  "measured_at": "2026-05-03T13:00:00"
 }
 ```
+
+`measured_at`은 클라이언트 시스템의 로컬 시간을 사용하며 timezone offset은 포함하지 않습니다.
 
 ## 디바이스 등록
 
