@@ -5,7 +5,7 @@ services:
       dockerfile: docker/Dockerfile
     image: gaon-climate-edge:latest
     container_name: gaon-climate-edge
-    restart: unless-stopped
+    restart: on-failure
     volumes:
       - ${APP_CONFIG_DIR:-../config}:/app/config:ro
       - ${APP_LOG_DIR:-../log}:/app/log

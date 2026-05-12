@@ -99,6 +99,7 @@ CLIMATE_MODE=prod docker compose -f docker/compose.yml logs -f
 다른 사용자 계정 경로를 쓰려면 `DEVICE_CONFIG_DIR=/home/다른계정/.config/gaon-climate ./docker/deploy.sh prod`처럼 실행하거나 `docker/deploy.sh`의 `DEVICE_CONFIG_DIR` 기본값을 변경합니다.
 키 파일이 없으면 `config/config.yml`의 `server.registration_endpoint`로 등록 요청을 보냅니다.
 등록 요청이 `401`, `409`, `5xx` 응답을 받으면 로그를 남기고 프로그램을 종료합니다.
+등록 실패는 정상 종료 코드로 종료되므로 Docker가 같은 등록 실패를 무한 반복하지 않습니다.
 
 ## 수동 실행
 

@@ -199,7 +199,7 @@ def load_config(
         ),
         server=ServerConfig(
             base_url=base_url,
-            endpoint=str(server.get("endpoint", "/clidmate/{device_key}")),
+            endpoint=str(server.get("endpoint", "/climate/{device_key}")),
             registration_endpoint=str(server.get("registration_endpoint", "/clidmate")),
             api_key=os.getenv("CLIMATE_API_KEY") or None,
             timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "10")),
@@ -281,16 +281,19 @@ def register_device(config: AppConfig) -> str:
     payload = {
         "device_name": config.device.name,
     }
+    registration_url = build_registration_url(config)
+    logging.info("Requesting device registration at %s", registration_url)
+
     try:
         response = requests.post(
-            build_registration_url(config),
+            registration_url,
             json=payload,
             headers=build_headers(config),
             timeout=config.server.timeout_seconds,
         )
     except requests.RequestException as error:
         logging.error("Device registration request failed: %s", error)
-        raise SystemExit(1) from error
+        raise SystemExit(0) from error
 
     if response.status_code in (401, 409) or response.status_code >= 500:
         logging.error(
@@ -298,7 +301,7 @@ def register_device(config: AppConfig) -> str:
             response.status_code,
             response.text.strip(),
         )
-        raise SystemExit(1)
+        raise SystemExit(0)
 
     if response.status_code != 200:
         logging.error(
@@ -306,13 +309,13 @@ def register_device(config: AppConfig) -> str:
             response.status_code,
             response.text.strip(),
         )
-        raise SystemExit(1)
+        raise SystemExit(0)
 
     try:
         device_key = extract_device_key(response)
     except RuntimeError as error:
         logging.error("%s", error)
-        raise SystemExit(1) from error
+        raise SystemExit(0) from error
 
     write_device_key(config.device.key_path, device_key)
     logging.info("Device registration succeeded and key was saved to %s", config.device.key_path)
@@ -331,7 +334,7 @@ def ensure_device_key(mode: str, config: AppConfig) -> str | None:
         device_key = read_device_key(config.device.key_path)
     except RuntimeError as error:
         logging.error("%s", error)
-        raise SystemExit(1) from error
+        raise SystemExit(0) from error
 
     if device_key:
         logging.info("Loaded device key from %s", config.device.key_path)
