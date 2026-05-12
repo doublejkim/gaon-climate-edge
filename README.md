@@ -113,6 +113,7 @@ CLIMATE_MODE=local docker compose -f docker/compose.yml logs -f
 파일 로그는 호스트의 `log/` 디렉토리에 남습니다.
 컨테이너에서는 `/app/log`로 마운트됩니다.
 `local` 모드는 `DEBUG`, `INFO`, `WARNING`, `ERROR` 레벨 로그를 모두 기록합니다.
+Docker 실행 시 호스트의 `/etc/localtime`을 컨테이너에 마운트하므로 로그의 `asctime`은 라즈베리파이 시스템 로컬타임을 따릅니다.
 
 마운트된 호스트 경로는 배포 스크립트 실행 마지막에 출력됩니다.
 컨테이너가 실제로 어떤 경로를 마운트했는지는 아래처럼 확인합니다.
@@ -231,6 +232,7 @@ gaon-climate-edge.20260503.17.log
 ```
 
 시간은 24시간제이며 한 자리 숫자는 `09`처럼 두 자리로 기록합니다.
+로그 본문 시간은 라즈베리파이 시스템 로컬타임으로 기록됩니다.
 로그 파일은 시간 단위로 바뀌고, `config/config.yml`의 `logging.retention_days`를 초과한 `gaon-climate-edge.*.*.log` 파일은 앱 시작 및 시간 변경 시 자동 삭제됩니다.
 기본값은 `3`이며 3일, 즉 72시간 보관을 의미합니다.
 
