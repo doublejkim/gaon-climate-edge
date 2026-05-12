@@ -200,7 +200,7 @@ def load_config(
         server=ServerConfig(
             base_url=base_url,
             endpoint=str(server.get("endpoint", "/climate/{device_key}")),
-            registration_endpoint=str(server.get("registration_endpoint", "/clidmate")),
+            registration_endpoint=str(server.get("registration_endpoint", "/climate")),
             api_key=os.getenv("CLIMATE_API_KEY") or None,
             timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "10")),
         ),
