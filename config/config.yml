@@ -1,35 +1,35 @@
-# DHT 온습도 센서 설정입니다.
-sensor:
-  # 사용할 센서 종류입니다. 현재 프로그램은 DHT22를 기준으로 동작합니다.
-  type: DHT22
-  # 라즈베리파이에 연결된 GPIO 핀 이름입니다. docs/sample_dht.py 기준값은 D4입니다.
-  board_pin: D4
-  # 라즈베리파이 환경에서 pulseio 사용 여부입니다. DHT22 샘플과 동일하게 false를 기본값으로 둡니다.
-  use_pulseio: false
+# 디바이스 종류입니다. claim 등록 요청의 name/type 값으로 그대로 사용됩니다.
+# 현재 가능한 값: TEMP_HUMIDITY, MIC
+type: TEMP_HUMIDITY
 
-# 센서 수집 주기와 값 검증 기준입니다.
+# BME280 온습도 센서 설정입니다.
+sensor:
+  # BME280 I2C 주소입니다. 보드에 따라 0x76 또는 0x77을 사용합니다.
+  # GPIO/배선 위치가 확정되기 전까지 이 설정값으로 조정합니다.
+  i2c_address: 0x76
+
+# 센서 수집 주기 설정입니다. forced mode 소프트웨어 타이머로 동작합니다.
 collection:
   # 온습도 값을 수집하는 주기입니다. 60초는 1분마다 수집한다는 의미입니다.
   interval_seconds: 60
-  # 직전 정상 온도와 현재 온도의 차이가 이 값보다 크면 이상값으로 보고 재측정합니다.
-  max_temperature_delta_c: 5.0
-  # 온도 차이가 너무 크거나 센서 읽기에 실패했을 때 최대 재시도 횟수입니다.
+  # 센서 읽기에 실패했을 때 최대 재시도 횟수입니다.
   retry_limit: 3
   # 재시도 사이에 대기할 시간입니다.
   retry_delay_seconds: 2
 
-# 서버 전송 설정입니다. 실제 서버 주소와 인증키는 config/.env에서 관리합니다.
+# 서버 API 경로 설정입니다. 실제 서버 주소와 인증키는 config/.env에서 관리합니다.
 server:
-  # prod 모드에서 POST 요청을 보낼 API 경로입니다. {device_key}는 디바이스 키 파일 값으로 치환됩니다.
-  endpoint: /climate/{device_key}
-  # 디바이스 키 파일이 없을 때 디바이스 등록 요청을 보낼 API 경로입니다.
-  registration_endpoint: /devices/register
+  # 온습도 전송 API 경로입니다. {device_key}는 .env의 device_key 값으로 치환됩니다.
+  climate_endpoint: /climate/{device_key}
+  # claim code로 디바이스를 등록할 API 경로입니다.
+  claim_endpoint: /devices/claim
 
 # 로그 파일 운영 설정입니다.
 logging:
-  # 로그 파일 보관 기간입니다. 7은 7일, 즉 168시간 보관을 의미합니다.
+  # 로그 파일 보관 기간입니다. 7은 7일 보관을 의미합니다.
   retention_days: 7
 
-# 이 장비를 구분하기 위한 로컬 이름입니다. 디바이스 등록 요청 payload에 포함됩니다.
+# 디바이스 등록 요청에 사용할 정보입니다.
 device:
-  name: gaon-climate-edge-01
+  # claim 등록 요청의 location_name 값으로 전송됩니다.
+  location_name: 우리집

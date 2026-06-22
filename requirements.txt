@@ -1,5 +1,5 @@
-adafruit-circuitpython-dht
-lgpio
+adafruit-circuitpython-bme280
+adafruit-blinka
 python-dotenv
 PyYAML
 requests

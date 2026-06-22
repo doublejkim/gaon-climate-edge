@@ -1,6 +1,5 @@
 config/.env
 env/.env
-docs/agent.md
 __pycache__/
 *.py[cod]
 !log/
