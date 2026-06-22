@@ -7,12 +7,13 @@ services:
     container_name: gaon-climate-edge
     restart: on-failure
     volumes:
-      - ${APP_CONFIG_DIR:-../config}:/app/config:ro
+      # config/.env에 api_key/device_key를 기록하므로 읽기/쓰기로 마운트합니다.
+      - ${APP_CONFIG_DIR:-../config}:/app/config
       - ${APP_LOG_DIR:-../log}:/app/log
-      - ${APP_DEVICE_CONFIG_DIR:-/home/doublej/.config/gaon-climate}:/root/.config/gaon-climate
       - /etc/localtime:/etc/localtime:ro
     privileged: true
     devices:
       - /dev/gpiomem:/dev/gpiomem
       - /dev/mem:/dev/mem
-    command: ["--mode", "${CLIMATE_MODE:-local}"]
+      - /dev/i2c-1:/dev/i2c-1
+    command: ["--mode", "${CLIMATE_MODE:-run}"]

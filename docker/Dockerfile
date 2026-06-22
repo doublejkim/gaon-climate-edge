@@ -21,4 +21,4 @@ COPY src ./src
 COPY config/config.yml ./config/config.yml
 
 ENTRYPOINT ["python3", "src/climate_agent.py"]
-CMD ["--mode", "local"]
+CMD ["--mode", "run"]

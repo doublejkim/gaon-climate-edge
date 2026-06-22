@@ -12,10 +12,12 @@ if [ -z "${APP_DIR:-}" ]; then
     fi
 fi
 BRANCH="${BRANCH:-main}"
-MODE="${1:-local}"
+MODE="${1:-run}"
+# 두 번째 인자로 claim code를 주면 첫 실행 등록을 먼저 수행합니다.
+CLAIM_CODE="${2:-}"
 
-if [ "$MODE" != "local" ] && [ "$MODE" != "prod" ]; then
-    echo "Usage: $0 [local|prod]"
+if [ "$MODE" != "test" ] && [ "$MODE" != "dummy" ] && [ "$MODE" != "run" ]; then
+    echo "Usage: $0 [test|dummy|run] [claim_code]"
     exit 1
 fi
 
@@ -54,35 +56,40 @@ cd "$APP_DIR"
 mkdir -p log
 export APP_CONFIG_DIR="$APP_DIR/config"
 export APP_LOG_DIR="$APP_DIR/log"
-# Device key storage on the Raspberry Pi host.
-# Change this path when the service should use another Linux account.
-# The compose file mounts this host directory to /root/.config/gaon-climate
-# because the Python process runs as root inside the container.
-DEVICE_CONFIG_DIR="${DEVICE_CONFIG_DIR:-/home/doublej/.config/gaon-climate}"
-mkdir -p "$DEVICE_CONFIG_DIR"
-export APP_DEVICE_CONFIG_DIR="$DEVICE_CONFIG_DIR"
 
-if [ "$MODE" = "prod" ]; then
-    if [ ! -f config/.env ]; then
-        cp config/.env.example config/.env
-        echo "Created config/.env from config/.env.example."
-        echo "Edit config/.env and set CLIMATE_SERVER_URL before running prod mode again."
-        exit 1
-    fi
+if [ ! -f config/.env ]; then
+    cp config/.env.example config/.env
+    echo "Created config/.env from config/.env.example."
+    echo "Edit config/.env and set SERVER_URL before running again."
+    exit 1
+fi
 
-    if ! grep -Eq '^CLIMATE_SERVER_URL=https?://[^[:space:]]+' config/.env; then
-        echo "config/.env must contain CLIMATE_SERVER_URL for prod mode."
-        exit 1
-    fi
+if ! grep -Eq '^SERVER_URL=https?://[^[:space:]]+' config/.env; then
+    echo "config/.env must contain SERVER_URL."
+    exit 1
+fi
 
-    if grep -Eq '^CLIMATE_SERVER_URL=https://example\.com/?$' config/.env; then
-        echo "config/.env still uses the example CLIMATE_SERVER_URL."
+if grep -Eq '^SERVER_URL=https://example\.com/?$' config/.env; then
+    echo "config/.env still uses the example SERVER_URL."
+    exit 1
+fi
+
+export CLIMATE_MODE="$MODE"
+
+# run/dummy 모드는 등록된 디바이스(api_key/device_key)가 필요합니다.
+if [ "$MODE" = "run" ] || [ "$MODE" = "dummy" ]; then
+    if [ -n "$CLAIM_CODE" ]; then
+        echo "Registering device with claim code"
+        compose -f docker/compose.yml build
+        compose -f docker/compose.yml run --rm climate-agent --mode run --claim-code "$CLAIM_CODE"
+    elif ! grep -Eq '^api_key=.+' config/.env || ! grep -Eq '^device_key=.+' config/.env; then
+        echo "config/.env must contain api_key and device_key for $MODE mode."
+        echo "Run first-time registration with: $0 $MODE <claim_code>"
         exit 1
     fi
 fi
 
 echo "Building and starting gaon-climate-edge in $MODE mode"
-export CLIMATE_MODE="$MODE"
 compose -f docker/compose.yml up -d --build --force-recreate
 
 echo "Done. Follow logs with:"
@@ -91,5 +98,3 @@ echo "Log files are written to:"
 echo "  $APP_DIR/log"
 echo "Mounted container log path:"
 echo "  $APP_LOG_DIR -> /app/log"
-echo "Device key file path:"
-echo "  $APP_DEVICE_CONFIG_DIR/device-key"
