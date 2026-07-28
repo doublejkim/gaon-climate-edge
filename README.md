@@ -1,13 +1,13 @@
 # Gaon Climate Edge
 
-라즈베리파이에 연결한 **BME280** 온습도 센서 값을 1분마다 수집해 서버로 전송하는 에지 프로그램입니다.
+라즈베리파이에 연결한 **DHT22** 온습도 센서 값을 1분마다 수집해 서버로 전송하는 에지 프로그램입니다.
 
 ## 사전 준비
 
-라즈베리파이에 BME280 센서를 **I2C**로 연결하고 I2C를 활성화합니다(`raspi-config` → Interface Options → I2C).
+라즈베리파이에 DHT22 센서의 데이터 핀을 **GPIO**에 연결합니다(기본값은 GPIO4 = `D4`).
 
-- 센서는 forced mode 소프트웨어 타이머로 1분마다 1회 측정합니다.
-- BME280 I2C 주소는 보드에 따라 `0x76` 또는 `0x77`이며 `config/config.yml`의 `sensor.i2c_address`에서 변경합니다.
+- 센서는 소프트웨어 타이머로 1분마다 1회 측정합니다.
+- 데이터 핀은 `config/config.yml`의 `sensor.board_pin`에서 변경합니다(예: `D4`, `D17`).
 
 파이썬 패키지를 설치합니다.
 
@@ -22,7 +22,8 @@ pip install -r requirements.txt
 프로그램 동작 설정을 관리합니다.
 
 - `type`: 디바이스 종류. `TEMP_HUMIDITY`(기본) 또는 `MIC`. claim 등록의 `name`/`type`로 전송됩니다.
-- `sensor.i2c_address`: BME280 I2C 주소 (`0x76` 또는 `0x77`)
+- `sensor.board_pin`: DHT22 데이터 핀 (board 모듈 핀 이름, 예: `D4` = GPIO4)
+- `sensor.use_pulseio`: pulseio 사용 여부 (라즈베리파이 계열은 `false` 권장)
 - `collection.interval_seconds`: 수집 주기(기본 60초 = 1분)
 - `collection.retry_limit` / `collection.retry_delay_seconds`: 센서 읽기 실패 시 재시도 설정
 - `server.climate_endpoint`: 온습도 전송 API 경로 (`/climate/{device_key}`)

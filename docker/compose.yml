@@ -13,7 +13,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
     privileged: true
     devices:
+      # DHT22는 GPIO(libgpiod)로 통신합니다. gpiochip0 접근이 필요합니다.
       - /dev/gpiomem:/dev/gpiomem
       - /dev/mem:/dev/mem
-      - /dev/i2c-1:/dev/i2c-1
+      - /dev/gpiochip0:/dev/gpiochip0
     command: ["--mode", "${CLIMATE_MODE:-run}"]

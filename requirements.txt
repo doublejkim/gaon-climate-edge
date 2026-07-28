@@ -1,4 +1,4 @@
-adafruit-circuitpython-bme280
+adafruit-circuitpython-dht
 adafruit-blinka
 python-dotenv
 PyYAML

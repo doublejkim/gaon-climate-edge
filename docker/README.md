@@ -4,8 +4,8 @@
 
 ## 파일
 
-- `Dockerfile`: Python 런타임과 BME280/I2C 관련 의존성을 포함한 이미지 정의
-- `compose.yml`: 라즈베리파이 I2C/GPIO 장치 접근 권한과 재시작 정책을 포함한 실행 구성
+- `Dockerfile`: Python 런타임과 DHT22/GPIO(libgpiod) 관련 의존성을 포함한 이미지 정의
+- `compose.yml`: 라즈베리파이 GPIO 장치 접근 권한과 재시작 정책을 포함한 실행 구성
 - `deploy.sh`: 라즈베리파이에서 git clone/pull, Docker 빌드, 컨테이너 실행까지 처리하는 배포 스크립트
 
 ## 스크립트 배포
@@ -123,8 +123,8 @@ logging:
 
 ## 문제 해결
 
-I2C 장치(`/dev/i2c-1`)가 없으면 `compose.yml`의 `devices` 항목을 환경에 맞게 조정하거나 `raspi-config`에서 I2C를 활성화합니다.
-센서가 연결되었는지는 `i2cdetect -y 1`로 확인하고, 표시되는 주소(`0x76`/`0x77`)를 `config/config.yml`의 `sensor.i2c_address`에 맞춥니다.
+GPIO 장치(`/dev/gpiochip0`)가 없으면 `compose.yml`의 `devices` 항목을 환경에 맞게 조정합니다(보드에 따라 gpiochip 번호가 다를 수 있습니다).
+DHT22 데이터 핀을 연결한 GPIO 번호를 `config/config.yml`의 `sensor.board_pin`(예: `D4` = GPIO4)에 맞춥니다.
 
 컨테이너 내부 `/app/log`에는 파일이 있는데 호스트에서 안 보인다면 다른 경로가 마운트되었을 수 있습니다.
 

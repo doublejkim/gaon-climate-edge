@@ -28,7 +28,8 @@ DUMMY_READINGS = (
 
 @dataclass(frozen=True)
 class SensorConfig:
-    i2c_address: int
+    board_pin: str
+    use_pulseio: bool
 
 
 @dataclass(frozen=True)
@@ -135,39 +136,31 @@ class HourlyLogFileHandler(logging.Handler):
                 log_path.unlink(missing_ok=True)
 
 
-class Bme280Sensor:
+class DhtSensor:
     def __init__(self, config: SensorConfig) -> None:
+        import adafruit_dht
         import board
-        import busio
-        from adafruit_bme280 import basic as adafruit_bme280
 
-        i2c = busio.I2C(board.SCL, board.SDA)
-        self._device = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=config.i2c_address)
-        # forced mode: 매 측정마다 1회만 변환하고 슬립 상태로 돌아갑니다.
-        # 1분 간격 같은 저빈도 수집에 적합합니다.
-        self._device.mode = adafruit_bme280.MODE_FORCE
+        # config.board_pin은 "D4"처럼 board 모듈의 핀 속성 이름입니다.
+        pin = getattr(board, config.board_pin)
+        # use_pulseio=False: 라즈베리파이 계열 SBC에서 권장(pulseio 미사용).
+        self._device = adafruit_dht.DHT22(pin, use_pulseio=config.use_pulseio)
 
     def read(self) -> ClimateReading:
         temperature_c = self._device.temperature
-        humidity = self._device.relative_humidity
+        humidity = self._device.humidity
 
-        if temperature_c is None:
-            raise RuntimeError("BME280 returned an empty temperature reading")
+        # DHT22는 체크섬 실패 시 None을 반환하거나 RuntimeError를 던집니다.
+        if temperature_c is None or humidity is None:
+            raise RuntimeError("DHT22 returned an empty reading")
 
         return ClimateReading(
             temperature_c=float(temperature_c),
-            humidity=float(humidity) if humidity is not None else None,
+            humidity=float(humidity),
         )
 
     def close(self) -> None:
-        pass
-
-
-def parse_i2c_address(raw: Any) -> int:
-    if isinstance(raw, int):
-        return raw
-    text = str(raw).strip()
-    return int(text, 16) if text.lower().startswith("0x") else int(text)
+        self._device.exit()
 
 
 def load_config(
@@ -194,7 +187,8 @@ def load_config(
 
     return AppConfig(
         sensor=SensorConfig(
-            i2c_address=parse_i2c_address(sensor.get("i2c_address", "0x76")),
+            board_pin=str(sensor.get("board_pin", "D4")),
+            use_pulseio=bool(sensor.get("use_pulseio", False)),
         ),
         collection=CollectionConfig(
             interval_seconds=int(collection.get("interval_seconds", 60)),
@@ -312,7 +306,7 @@ def register_device(config: AppConfig, claim_code: str) -> tuple[str, str]:
     return str(api_key), str(device_key)
 
 
-def read_with_retry(sensor: Bme280Sensor, collection: CollectionConfig) -> ClimateReading:
+def read_with_retry(sensor: DhtSensor, collection: CollectionConfig) -> ClimateReading:
     last_error: Exception | None = None
 
     for attempt in range(1, collection.retry_limit + 1):
@@ -352,7 +346,7 @@ def post_reading(config: AppConfig, api_key: str, device_key: str, reading: Clim
 
 def parse_args() -> tuple[str, str | None]:
     parser = ArgumentParser(
-        description="BME280 온습도 값을 수집해 서버로 전송하는 에지 프로그램입니다.",
+        description="DHT22 온습도 값을 수집해 서버로 전송하는 에지 프로그램입니다.",
     )
     parser.add_argument(
         "--mode",
@@ -417,13 +411,13 @@ def run() -> None:
         api_key = config.server.api_key
         device_key = config.server.device_key
 
-    sensor: Bme280Sensor | None = None
+    sensor: DhtSensor | None = None
 
     if mode in ("run", "dummy"):
         api_key, device_key = ensure_registered(config)
 
     if mode in ("test", "run"):
-        sensor = Bme280Sensor(config.sensor)
+        sensor = DhtSensor(config.sensor)
 
     dummy_index = 0
 

@@ -2,13 +2,14 @@
 # 현재 가능한 값: TEMP_HUMIDITY, MIC
 type: TEMP_HUMIDITY
 
-# BME280 온습도 센서 설정입니다.
+# DHT22 온습도 센서 설정입니다.
 sensor:
-  # BME280 I2C 주소입니다. 보드에 따라 0x76 또는 0x77을 사용합니다.
-  # GPIO/배선 위치가 확정되기 전까지 이 설정값으로 조정합니다.
-  i2c_address: 0x76
+  # DHT22 데이터 핀입니다. board 모듈의 핀 이름을 그대로 사용합니다(예: D4는 GPIO4).
+  board_pin: D4
+  # 라즈베리파이 계열 SBC에서는 pulseio 미사용(False)을 권장합니다.
+  use_pulseio: false
 
-# 센서 수집 주기 설정입니다. forced mode 소프트웨어 타이머로 동작합니다.
+# 센서 수집 주기 설정입니다. 소프트웨어 타이머로 동작합니다.
 collection:
   # 온습도 값을 수집하는 주기입니다. 60초는 1분마다 수집한다는 의미입니다.
   interval_seconds: 60
