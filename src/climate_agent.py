@@ -289,16 +289,21 @@ def register_device(config: AppConfig, claim_code: str) -> tuple[str, str]:
         raise SystemExit(1)
 
     try:
-        data = response.json()
+        body = response.json()
     except ValueError as error:
         logging.error("디바이스 등록 실패: 응답이 JSON 형식이 아닙니다")
         raise SystemExit(1) from error
 
+    # 서버 응답은 {"code": ..., "data": {...}} 형태로 data 봉투에 감싸여 있습니다.
+    data = body.get("data") or {}
     api_key = data.get("api_key")
     device_key = (data.get("device") or {}).get("device_key")
 
     if not api_key or not device_key:
-        logging.error("디바이스 등록 실패: 응답에 api_key 또는 device_key가 없습니다")
+        logging.error(
+            "디바이스 등록 실패: 응답에 api_key 또는 device_key가 없습니다. 실제 응답: %s",
+            response.text.strip(),
+        )
         raise SystemExit(1)
 
     update_env_file(config.env_path, {"api_key": str(api_key), "device_key": str(device_key)})
