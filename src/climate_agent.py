@@ -343,7 +343,7 @@ def post_reading(config: AppConfig, api_key: str, device_key: str, reading: Clim
     response = requests.post(
         build_climate_url(config, device_key),
         json=payload,
-        headers={"Content-Type": "application/json", "Authorization": api_key},
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
         timeout=config.server.timeout_seconds,
     )
     response.raise_for_status()
