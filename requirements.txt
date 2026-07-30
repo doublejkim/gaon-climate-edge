@@ -1,5 +1,7 @@
 adafruit-circuitpython-dht
 adafruit-blinka
+# DHT22 비트뱅잉 시 adafruit-blinka가 라즈베리파이에서 사용하는 GPIO 백엔드입니다.
+RPi.GPIO
 python-dotenv
 PyYAML
 requests
